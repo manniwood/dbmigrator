@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/manniwood/dbmigrator"
 )
 
 func main() {
@@ -19,11 +19,8 @@ func main() {
 	}
 	defer conn.Close(context.Background())
 
-	var numeral int
-	err = conn.QueryRow(context.Background(), "select 1").Scan(&numeral)
+	err = dbmigrator.Migrate(conn)
 	if err != nil {
-		log.Fatalf("QueryRow failed: %v\n", err)
+		log.Fatalf("Unable to migrate: %v\n", err)
 	}
-
-	fmt.Println(numeral)
 }
