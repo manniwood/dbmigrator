@@ -4,6 +4,7 @@ package dbmigrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"strings"
 
@@ -48,7 +49,7 @@ func New(conn *pgx.Conn, dir string) (*Migrator, error) {
 	}, nil
 }
 
-func (m *Migrator) Migrate(ctx context.Context) error {
+func (m *Migrator) Migrate(ctx context.Context, w io.Writer) error {
 	// Get the current status of the database by getting the maximum migration
 	// from the migrations table.
 	var current string
@@ -60,9 +61,9 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 		return fmt.Errorf("Problem getting current status: %v", err)
 	}
 	if current == "" {
-		fmt.Printf("No migrations yet.\n")
+		fmt.Fprintf(w, "No migrations yet.\n")
 	} else {
-		fmt.Printf("Current database state: %s\n", current)
+		fmt.Fprintf(w, "Current database state: %s\n", current)
 	}
 
 	// Get the list of database migrations in alphabetical order.
@@ -73,12 +74,14 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 	// Usefully, ioutilReadDir() returns a sorted list!
 	// Go through the list and only hold on to those
 	// which are above the current migration.
+	migrationsDone := 0
 	for _, f := range files {
 		if strings.Compare(f.Name(), current) == 1 {
 			// This migration has not been done yet.
+			fmt.Fprintf(w, "Migrating %s\n", f.Name())
 			err = m.doMigration(ctx, f.Name())
 			if err != nil {
-				return fmt.Errorf("Migrating %s: %v", f.Name(), err)
+				return fmt.Errorf("Problem migrating %s: %v", f.Name(), err)
 			}
 			// Update migrations table with f.Name()
 			_, err = m.conn.Exec(ctx, `insert into migrations
@@ -86,8 +89,10 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("Problem updating migrations table with %s: %v", f.Name(), err)
 			}
+			migrationsDone++
 		}
 	}
+	fmt.Fprintf(w, "Did %d migrations.\n", migrationsDone)
 
 	return nil
 }
@@ -103,36 +108,3 @@ func (m *Migrator) doMigration(ctx context.Context, fileName string) error {
 	}
 	return nil
 }
-
-/* func Migrate:
-1. Find dir with migrate scripts in them.
-2. Sort *_up.sql files alphabetically.
-3. begin; select max(id) from migrations; rollback;
-4. begin;
-5. for each sql file greater than max(id)
-5.1  apply file
-5.2. if error, rollback;, report to user, and os.exit(1)
-5.3  insert into migrations (id, apply_time) values (file.id, now())
-5.4. if error, rollback;, report to user, and os.exit(1)
-6. commit;, report success, and os.exit(0)
-*/
-
-/*
-apply file: do we just apply the whole damned file, or do we
-apply it one statement at a time? What about creation of stored
-procedures which has embedded semicolons? Yeah, looks like just
-applying the whole damned file is a good way to go, because
-Pg allows doing so, and it's way easier to code.
-Make a note to the user that "commit;" and "rollback;" are not
-allowed in the sql file.
-*/
-
-/*
-Design decision: don't even allow backward
-migrations. I mean, who actually does that?
-Just make everything forward migrations.
-Migration should always migrate to the latest
-available. If a user does not want a migration
-to happen, the migration script should not be
-present.
-*/

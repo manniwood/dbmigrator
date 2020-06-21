@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to set up migrator: %v\n", err)
 	}
-	err = migrator.Migrate(context.Background())
+	err = migrator.Migrate(context.Background(), os.Stdout)
 	if err != nil {
 		log.Fatalf("Unable to migrate: %v\n", err)
 	}
