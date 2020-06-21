@@ -19,7 +19,13 @@ func main() {
 	}
 	defer conn.Close(context.Background())
 
-	err = dbmigrator.Migrate(conn)
+	dir := os.Getenv("MIGRATIONS_DIR")
+
+	migrator, err := dbmigrator.New(conn, dir)
+	if err != nil {
+		log.Fatalf("Unable to set up migrator: %v\n", err)
+	}
+	err = migrator.Migrate(context.Background())
 	if err != nil {
 		log.Fatalf("Unable to migrate: %v\n", err)
 	}
