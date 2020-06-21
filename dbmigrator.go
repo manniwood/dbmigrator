@@ -36,6 +36,9 @@ type Migrator struct {
 	dir string
 }
 
+// New returns a new Migrator. It needs a connection to
+// postgres (using a pgx connection) and a directory to
+// look for migrations in.
 func New(conn *pgx.Conn, dir string) (*Migrator, error) {
 	// Always ensure the migrations table exists first.
 	ctx := context.Background()
@@ -49,6 +52,11 @@ func New(conn *pgx.Conn, dir string) (*Migrator, error) {
 	}, nil
 }
 
+// Migrate migrates the db to the most recent migration in
+// the directory the migrator was configured to look in.
+// Migrate is a bit chatty when it works; however, it chats
+// to io.Writer w, which you can make whatever you want, including
+// a kind of writer that just throws away messages.
 func (m *Migrator) Migrate(ctx context.Context, w io.Writer) error {
 	// Get the current status of the database by getting the maximum migration
 	// from the migrations table.
@@ -97,6 +105,10 @@ func (m *Migrator) Migrate(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
+// doMigration does a single migration listed in fileName.
+// It executes the entire file all at once, taking adavantage
+// of the fact that PostgreSQL can run more than one (semi-colon-terminated)
+// SQL query with a single call.
 func (m *Migrator) doMigration(ctx context.Context, fileName string) error {
 	fileBytes, err := ioutil.ReadFile(m.dir + "/" + fileName)
 	if err != nil {
