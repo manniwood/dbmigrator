@@ -1,4 +1,4 @@
-[![](https://godoc.org/github.com/manniwood/dbmigrator?status.svg)](https://pkg.go.dev/github.com/manniwood/dbmigrator)
+[![](https://godoc.org/github.com/manniwood/dbmigrator?status.svg)](https://godoc.org/github.com/manniwood/dbmigrator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # DBMigrator (Work in Progress)
