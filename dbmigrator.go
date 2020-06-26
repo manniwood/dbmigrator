@@ -81,9 +81,16 @@ func (m *Migrator) Migrate(ctx context.Context, w io.Writer) error {
 	}
 	// Usefully, ioutilReadDir() returns a sorted list!
 	// Go through the list and only hold on to those
-	// which are above the current migration.
+	// which are above the current migration. Also, skip
+	// any file that does not end with `*.sql`.
 	migrationsDone := 0
 	for _, f := range files {
+
+		// Skp any file that does not end in ".sql"
+		if !strings.HasSuffix(f.Name(), ".sql") {
+			continue
+		}
+
 		if strings.Compare(f.Name(), current) == 1 {
 			// This migration has not been done yet.
 			fmt.Fprintf(w, "Migrating %s\n", f.Name())

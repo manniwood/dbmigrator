@@ -1,9 +1,9 @@
 [![](https://godoc.org/github.com/manniwood/dbmigrator?status.svg)](https://godoc.org/github.com/manniwood/dbmigrator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# DBMigrator (Work in Progress)
+# DBMigrator: A Minimalist Database Migrator
 
-DBMigrator is an experiment to see just how simple a database migrator can be.
+DBMigrator is an experiment to see just how minimal a database migrator can be.
 
 I was tempted to just write this in Bash, calling PostgreSQL's `psql` client
 when necessary. But I decided to do it in Go.
@@ -29,7 +29,11 @@ Your migration scripts will be written in plain-old SQL (PostgreSQL's flavor).
 
 Your migration scripts must all live together in the same directory.
 
-Only migration scripts are allowed to live in your migrations directory.
+Your migration scripts must all end in '.sql', or they will be ignored.
+
+Your migration scripts are assumed to be applied in alphabetical order,
+so choose a naming scheme for your '.sql' files that keeps them alphabetical
+by the order you wish the migrations to happen in.
 
 Migrations only work forward. If you need to undo a previous migration,
 create a new migration that undoes the migration you need to undo.
@@ -80,10 +84,8 @@ Did 0 migrations.
 ```
 ## Future plans
 
-I plan to write an integration test suite for this.
-
-I have very few other plans for this! I wanted to prove to myself just how much
-a database migrator could be under-engineered and still be useful.
+I have very few other plans for this! I wanted to prove to myself just how minimalistic
+a database migrator could be and still be useful.
 
 I hope the licence is permissive enough that if anybody wants to use this code as
 inspiration for a similar project (maybe a MySQL-only version, for instance), anybody
