@@ -82,6 +82,15 @@ $ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres?applicatio
 Current database state: e.sql
 Did 0 migrations.
 ```
+
+## Testing
+
+You need a postgresql instance at localhost:5432 with the default
+database (postgres) and user (postgres) containing no tables.
+
+Running the test suite will leave behind tables in the postgres
+database, which will have to be deleted manually.
+
 ## Future plans
 
 I have very few other plans for this! I wanted to prove to myself just how minimalistic
@@ -90,4 +99,5 @@ a database migrator could be and still be useful.
 I hope the licence is permissive enough that if anybody wants to use this code as
 inspiration for a similar project (maybe a MySQL-only version, for instance), anybody
 can feel free to go ahead and do so.
+
 
