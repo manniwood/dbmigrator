@@ -1,4 +1,5 @@
 [![](https://godoc.org/github.com/manniwood/dbmigrator?status.svg)](https://godoc.org/github.com/manniwood/dbmigrator)
+[![Build Status](https://travis-ci.com/manniwood/dbmigrator.svg)](https://travis-ci.com/manniwood/dbmigrator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # DBMigrator: A Minimalist Database Migrator
