@@ -2,6 +2,7 @@ package dbmigrator
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -10,15 +11,24 @@ import (
 
 const TestDBURL string = "postgresql://postgres:postgres@localhost:5432/postgres?application_name=migrator"
 
+// We need to clean up after ourselves so that our test state is OK
+func dropTables(t *testing.T, tables ...string) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, TestDBURL)
+	if err != nil {
+		t.Errorf("CLEANUP: Problem trying to connect to Pg so that we can drop tables: %v", err)
+	}
+
+	for _, table := range tables {
+		_, err := conn.Exec(ctx, fmt.Sprintf(`drop table if exists %s`, table))
+		if err != nil {
+			t.Errorf("CLEANUP: Problem trying to drop table %s: %v", table, err)
+		}
+	}
+}
+
 func TestMigrate(t *testing.T) {
-	conn, err := pgx.Connect(context.Background(), TestDBURL)
-	if err != nil {
-		t.Errorf("Unable to connect to PostgreSQL: %v", err)
-	}
-	defer conn.Close(context.Background())
-	if err != nil {
-		t.Errorf("Error getting item: %v", err)
-	}
+	defer dropTables(t, "a", "b", "c", "migrations")
 
 	// The following migrations all build on each other
 	// and have to be executed in the order shown; do not
@@ -55,6 +65,10 @@ func TestMigrate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		conn, err := pgx.Connect(context.Background(), TestDBURL)
+		if err != nil {
+			t.Errorf("Unable to connect to PostgreSQL: %v", err)
+		}
 		migrator, err := New(conn, tt.dir)
 		if err != nil {
 			t.Errorf("Unable to set up migrator: %v", err)
@@ -92,5 +106,34 @@ func TestMigrate(t *testing.T) {
 				t.Errorf("Could not find table %s after migration.", table)
 			}
 		}
+		err = conn.Close(context.Background())
+		if err != nil {
+			t.Errorf("Problem closing connection to pg; possibility of advisory lock not being closed: %v", err)
+		}
+	}
+
+}
+
+func TestAdvisoryLock(t *testing.T) {
+	defer dropTables(t, "migrations")
+	conn, err := pgx.Connect(context.Background(), TestDBURL)
+	if err != nil {
+		t.Errorf("Unable to connect to PostgreSQL: %v", err)
+	}
+	defer conn.Close(context.Background())
+
+	_, err = New(conn, "test_migrations/empty")
+	if err != nil {
+		t.Errorf("Unable to set up migrator: %v", err)
+	}
+
+	conn2, err := pgx.Connect(context.Background(), TestDBURL)
+	if err != nil {
+		t.Errorf("Unable to conn2ect to PostgreSQL: %v", err)
+	}
+	defer conn2.Close(context.Background())
+	_, err = New(conn2, "test_migrations/empty")
+	if err == nil {
+		t.Errorf("Second migrator was supposed to throw an error, but it did not!")
 	}
 }

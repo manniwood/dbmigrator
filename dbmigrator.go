@@ -8,8 +8,16 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
+
+// advLockClassID is a magic number chosen to identify a PostgreSQL avisory lock
+// that is used to prevent more than one copy of dbmigrator running at the same time.
+const advLockClassID pgtype.OID = 12345
+// advLockObjectID is a magic number chosen to identify a PostgreSQL avisory lock
+// that is used to prevent more than one copy of dbmigrator running at the same time.
+const advLockObjectID pgtype.OID = 12345
 
 // NOTE on error handling: we follow the advice at https://blog.golang.org/go1.13-errors:
 // The pgx errors we will be dealing with are internal details.
@@ -18,16 +26,6 @@ import (
 // %w would permit the caller to unwrap the original pgx errors.
 // We don't want to support pgx errors as part of our API.
 
-// createMigrationsTable is the SQL to ensure the
-// migrations table exists (because it won't
-// on the very first migration). The SQL
-// is therefore written to make creating this
-// table idempotent.
-const createMigrationsTable string = `
-create table if not exists migrations (
-  migration text constraint migrations_pk primary key not null,
-	applied_on timestamp without time zone not null default now())
-`
 // Migrator migrates a database from one schema to another.
 type Migrator struct {
 	// conn is a PostgreSQL connection.
@@ -40,16 +38,56 @@ type Migrator struct {
 // postgres (using a pgx connection) and a directory to
 // look for migrations in.
 func New(conn *pgx.Conn, dir string) (*Migrator, error) {
-	// Always ensure the migrations table exists first.
 	ctx := context.Background()
-	_, err := conn.Exec(ctx, createMigrationsTable)
+
+	// Try to acquire advisory lock. If false, another copy of dbmigrator
+	// is running.
+	ok, err := tryAdvisoryLock(ctx, conn)
 	if err != nil {
-		return nil, fmt.Errorf("Problem creating migrations table: %v", err)
+		return nil, err
 	}
+	if !ok {
+		return nil, fmt.Errorf("Another copy of dbmigrator is already running.")
+	}
+
+	// Always ensure the migrations table exists first.
+	err = createMigrationsTable(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Migrator{
 		conn: conn,
 		dir:  dir,
 	}, nil
+}
+
+// tryAdvisoryLock tries to grab an exclusive advisory lock; if this fails,
+// it means another copy of dbmigrator is running and we should stay out of
+// its way.
+func tryAdvisoryLock(ctx context.Context, conn *pgx.Conn) (bool, error) {
+	var ok bool
+	err := conn.QueryRow(ctx, "select pg_try_advisory_lock(666, 999)").Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("Problem trying to acquire advisory lock: %v", err)
+	}
+	return ok, nil
+}
+
+// createMigrationsTable idempotently creates the migrations table
+// used by dbmigrator. The migration table will not exist on the very first
+// migration. The SQL is therefore written to make creating this table
+// idempotent.
+func createMigrationsTable(ctx context.Context, conn *pgx.Conn) error {
+	_, err := conn.Exec(ctx, `
+create table if not exists migrations (
+  migration text constraint migrations_pk primary key not null,
+	applied_on timestamp without time zone not null default now())
+`)
+	if err != nil {
+		return fmt.Errorf("Problem creating migrations table: %v", err)
+	}
+	return nil
 }
 
 // Migrate migrates the db to the most recent migration in
