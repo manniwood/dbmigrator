@@ -4,6 +4,14 @@
 
 # DBMigrator: A Minimalist Database Migrator
 
+## Project Status: Experimental
+
+Just playing with some ideas here; figured I'd share. I wouldn't reccomend
+using this in production, but I'd be pleased if anybody stole some ideas
+from this project: it's quite permissively licenced.
+
+## Summary
+
 DBMigrator is an experiment to see just how minimal a database migrator can be.
 
 I was tempted to just write this in Bash, calling PostgreSQL's `psql` client
